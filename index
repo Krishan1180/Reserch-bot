@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Website with Chat Assistant</title>
+    <style>
+        /* Basic styling for the page */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #333;
+            text-align: center;
+        }
+        .content {
+            max-width: 600px;
+        }
+        h1 {
+            font-size: 2.5em;
+        }
+        p {
+            font-size: 1.2em;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="content">
+        <h1>Welcome to My Website!</h1>
+        <p>This is a demonstration page. You should see a chat icon in the bottom-right corner. Click it to talk to my AI assistant!</p>
+    </div>
+
+    <script>
+      window.n8n = {
+        chat: {
+          credentials: {
+            // This is your unique chatbot URL
+            webhookUrl: "https://tarunai1990.app.n8n.cloud/webhook/1667e032-3370-4fa5-b485-1b9cf2fba5cd/chat",
+          },
+        },
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/n8n-chat/dist/index.umd.js"></script>
+    </body>
+</html>
