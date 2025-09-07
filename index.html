@@ -1,15 +1,4 @@
-# Create a ready-to-use HTML file that embeds the given n8n chat endpoint as a bottom-right chat bubble.
-# The bubble icon uses the attached image, embedded as a base64 data URI so it's fully self-contained.
-
-import base64, textwrap, os, json
-
-icon_path = "/mnt/data/qwen-image-edit_person-in-white-coat-and-blue-tied.png"
-with open(icon_path, "rb") as f:
-    b64_icon = base64.b64encode(f.read()).decode("utf-8")
-
-endpoint_url = "https://tarunai1990.app.n8n.cloud/webhook/1667e032-3370-4fa5-b485-1b9cf2fba5cd/chat"
-
-html = f"""<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
