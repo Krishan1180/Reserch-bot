@@ -1,51 +1,229 @@
-<!DOCTYPE html>
+# Create a ready-to-use HTML file that embeds the given n8n chat endpoint as a bottom-right chat bubble.
+# The bubble icon uses the attached image, embedded as a base64 data URI so it's fully self-contained.
+
+import base64, textwrap, os, json
+
+icon_path = "/mnt/data/qwen-image-edit_person-in-white-coat-and-blue-tied.png"
+with open(icon_path, "rb") as f:
+    b64_icon = base64.b64encode(f.read()).decode("utf-8")
+
+endpoint_url = "https://tarunai1990.app.n8n.cloud/webhook/1667e032-3370-4fa5-b485-1b9cf2fba5cd/chat"
+
+html = f"""<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Website with Chat Assistant</title>
-    <style>
-        /* Basic styling for the page */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f2f5;
-            color: #333;
-            text-align: center;
-        }
-        .content {
-            max-width: 600px;
-        }
-        h1 {
-            font-size: 2.5em;
-        }
-        p {
-            font-size: 1.2em;
-            color: #555;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Research Agent Chat Bubble</title>
+  <style>
+    :root {{
+      --bubble-size: 64px;
+      --gap: 20px;
+      --radius: 16px;
+      --shadow: 0 10px 25px rgba(0,0,0,.2);
+      --brand: #0b5cff;
+    }}
+
+    /* Floating bubble button */
+    .rg-chat-bubble {{
+      position: fixed;
+      right: var(--gap);
+      bottom: var(--gap);
+      width: var(--bubble-size);
+      height: var(--bubble-size);
+      border-radius: 50%;
+      background: #fff center/cover no-repeat url('data:image/png;base64,{b64_icon}');
+      box-shadow: var(--shadow);
+      border: 2px solid rgba(0,0,0,.06);
+      cursor: pointer;
+      z-index: 2147483000;
+      display: grid;
+      place-items: center;
+    }}
+    .rg-chat-bubble:focus {{ outline: 3px solid var(--brand); outline-offset: 3px; }}
+    .rg-chat-bubble:hover {{ transform: translateY(-1px); transition: transform .15s ease; }}
+
+    /* Badge/pulse (optional) */
+    .rg-pulse {{
+      position: absolute;
+      right: -2px;
+      top: -2px;
+      width: 14px;
+      height: 14px;
+      background: var(--brand);
+      border: 2px solid #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(11, 92, 255, .6);
+      animation: rg-ping 2.2s infinite;
+    }}
+    @keyframes rg-ping {{
+      0% {{ box-shadow: 0 0 0 0 rgba(11, 92, 255, .6); }}
+      70% {{ box-shadow: 0 0 0 12px rgba(11, 92, 255, 0); }}
+      100% {{ box-shadow: 0 0 0 0 rgba(11, 92, 255, 0); }}
+    }}
+
+    /* Chat Window */
+    .rg-window {{
+      position: fixed;
+      bottom: calc(var(--gap) + var(--bubble-size) + 12px);
+      right: var(--gap);
+      width: 380px;
+      height: 560px;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      z-index: 2147483001;
+      display: none; /* toggled by JS */
+      transform-origin: bottom right;
+    }}
+    .rg-window.open {{ display: block; animation: rg-zoom .18s ease; }}
+    @keyframes rg-zoom {{
+      from {{ transform: scale(.96); opacity: .6; }}
+      to   {{ transform: scale(1);   opacity: 1; }}
+    }}
+
+    .rg-header {{
+      height: 52px;
+      background: linear-gradient(135deg, #ffffff 0%, #f6f8ff 100%);
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px 0 10px;
+      gap: 10px;
+    }}
+    .rg-head-left {{ display: flex; align-items: center; gap: 10px; }}
+    .rg-head-icon {{
+      width: 28px; height: 28px; border-radius: 8px;
+      background: center/cover no-repeat url('data:image/png;base64,{b64_icon}');
+      border: 1px solid rgba(0,0,0,.08);
+      box-shadow: 0 2px 6px rgba(0,0,0,.06) inset;
+      flex: 0 0 auto;
+    }}
+    .rg-title {{ font: 600 15px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }}
+    .rg-sub   {{ font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #4b5563; }}
+    .rg-close {{
+      width: 34px; height: 34px; border-radius: 10px; border: 1px solid rgba(0,0,0,.08);
+      background: #fff; cursor: pointer; display: grid; place-items: center;
+    }}
+    .rg-close:hover {{ background: #f5f7ff; }}
+
+    .rg-iframe {{
+      width: 100%;
+      height: calc(100% - 52px);
+      border: 0;
+      display: block;
+    }}
+
+    /* Backdrop for outside-click (mobile usability) */
+    .rg-backdrop {{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.08);
+      z-index: 2147483000;
+      display: none;
+    }}
+    .rg-backdrop.open {{ display: block; animation: rg-fade .18s ease; }}
+    @keyframes rg-fade {{
+      from {{ opacity: 0; }}
+      to   {{ opacity: 1; }}
+    }}
+
+    /* Mobile tweaks */
+    @media (max-width: 480px) {{
+      .rg-window {{
+        width: 94vw;
+        height: 76vh;
+        right: 3vw;
+        bottom: calc(var(--gap) + var(--bubble-size) + 10px);
+        border-radius: 14px;
+      }}
+    }}
+
+    /* Optional: small tooltip */
+    .rg-tooltip {{
+      position: absolute;
+      right: calc(var(--bubble-size) + 12px);
+      bottom: calc(var(--bubble-size)/2 - 10px);
+      background: #111827;
+      color: #fff;
+      padding: 8px 10px;
+      border-radius: 10px;
+      font: 12px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      box-shadow: var(--shadow);
+      opacity: 0; transform: translateY(4px);
+      pointer-events: none;
+      transition: opacity .15s ease, transform .15s ease;
+      white-space: nowrap;
+    }}
+    .rg-chat-bubble:hover + .rg-tooltip {{ opacity: 1; transform: translateY(0); }}
+  </style>
 </head>
 <body>
 
-    <div class="content">
-        <h1>Welcome to My Website!</h1>
-        <p>This is a demonstration page. You should see a chat icon in the bottom-right corner. Click it to talk to my AI assistant!</p>
-    </div>
+  <!-- Chat Bubble Button -->
+  <button class="rg-chat-bubble" id="rgChatBubble" aria-label="Open Research Agent chat"></button>
+  <div class="rg-tooltip">Ask the Research Agent</div>
+  <div class="rg-backdrop" id="rgBackdrop" aria-hidden="true"></div>
 
-    <script>
-      window.n8n = {
-        chat: {
-          credentials: {
-            // This is your unique chatbot URL
-            webhookUrl: "https://tarunai1990.app.n8n.cloud/webhook/1667e032-3370-4fa5-b485-1b9cf2fba5cd/chat",
-          },
-        },
-      };
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/n8n-chat/dist/index.umd.js"></script>
-    </body>
+  <!-- Chat Window -->
+  <section class="rg-window" id="rgWindow" role="dialog" aria-modal="true" aria-labelledby="rgTitle">
+    <header class="rg-header">
+      <div class="rg-head-left">
+        <div class="rg-head-icon" aria-hidden="true"></div>
+        <div>
+          <div class="rg-title" id="rgTitle">Research Agent</div>
+          <div class="rg-sub">Get a research-grade report for any query</div>
+        </div>
+      </div>
+      <button class="rg-close" id="rgClose" aria-label="Close chat">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" stroke="#111827" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </button>
+    </header>
+
+    <iframe
+      class="rg-iframe"
+      id="rgIframe"
+      title="Research Agent chat"
+      src="{endpoint_url}"
+      allow="clipboard-read; clipboard-write;"
+      referrerpolicy="strict-origin-when-cross-origin">
+    </iframe>
+  </section>
+
+  <script>
+    (function() {{
+      const bubble   = document.getElementById('rgChatBubble');
+      const win      = document.getElementById('rgWindow');
+      const closeBtn = document.getElementById('rgClose');
+      const backdrop = document.getElementById('rgBackdrop');
+
+      function openChat() {{
+        win.classList.add('open');
+        backdrop.classList.add('open');
+      }}
+      function closeChat() {{
+        win.classList.remove('open');
+        backdrop.classList.remove('open');
+      }}
+
+      bubble.addEventListener('click', openChat);
+      closeBtn.addEventListener('click', closeChat);
+      backdrop.addEventListener('click', closeChat);
+      document.addEventListener('keydown', function(e) {{
+        if (e.key === 'Escape') closeChat();
+      }});
+    }})();
+  </script>
+</body>
 </html>
+"""
+
+out_path = "/mnt/data/research-agent-chat-bubble.html"
+with open(out_path, "w", encoding="utf-8") as f:
+    f.write(html)
+
+out_path
